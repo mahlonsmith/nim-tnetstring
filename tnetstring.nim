@@ -50,7 +50,7 @@
 ##   # tnetobj is now equivalent to the structure:
 ##   # @[(key: test, val: 1.3), (key: key2, val: true), (key: things, val: @[1, 2, 3])]
 ##
-##   assert ( tnetobj.kind == TNetstringObject )
+##   assert( tnetobj.kind == TNetstringObject )
 ##   echo tnetobj[ "test" ]
 ##   echo tnetobj[ "key2" ]
 ##   for item in tnetobj[ "things" ]:
@@ -248,7 +248,6 @@ proc parse_tnetstring*( data: string ): TNetstringNode =
             if ( key.kind != TNetstringString ): raiseParseErr( result, "Invalid data: Object keys must be strings." )
 
             var value = parse_tnetstring( key.extra )
-            result.fields = @[]
             result.fields.add( (key: key.str, val: value) )
 
             while value.extra != "":
