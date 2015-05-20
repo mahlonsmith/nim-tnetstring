@@ -184,6 +184,50 @@ proc newTNetstringArray*(): TNetstringNode =
     result.elems = @[]
 
 
+proc getStr*( node: TNetstringNode, default: string = "" ): string =
+    ## Retrieves the string value of a `TNetstringString TNetstringNodee`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringString``.
+    if node.kind != TNetstringString: return default
+    return node.str
+
+
+proc getInt*( node: TNetstringNode, default: BiggestInt = 0 ): BiggestInt =
+    ## Retrieves the int value of a `TNetstringInt TNetstringNode`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringInt``.
+    if node.kind != TNetstringInt: return default
+    return node.num
+
+
+proc getFloat*( node: TNetstringNode, default: float = 0.0 ): float =
+    ## Retrieves the float value of a `TNetstringFloat TNetstringNode`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringFloat``.
+    if node.kind != TNetstringFloat: return default
+    return node.fnum
+
+
+proc getBool*( node: TNetstringNode, default: bool = false ): bool =
+    ## Retrieves the bool value of a `TNetstringBool TNetstringNode`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringBool``.
+    if node.kind != TNetstringBool: return default
+    return node.bval
+
+
+proc getFields*( node: TNetstringNode,
+    default: seq[tuple[key: string, val: TNetstringNode]] = @[] ):
+        seq[tuple[key: string, val: TNetstringNode]] =
+    ## Retrieves the key, value pairs of a `TNetstringObject TNetstringNode`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringObject``.
+    if node.kind != TNetstringObject: return default
+    return node.fields
+
+
+proc getElems*( node: TNetstringNode, default: seq[TNetstringNode] = @[] ): seq[TNetstringNode] =
+    ## Retrieves the values of a `TNetstringArray TNetstringNode`.
+    ## Returns ``default`` if ``node`` is not a ``TNetstringArray``.
+    if node.kind != TNetstringArray: return default
+    return node.elems
+
+
 proc parse_tnetstring*( data: string ): TNetstringNode =
     ## Given an encoded tnetstring, parse and return a TNetstringNode.
     var
@@ -630,8 +674,32 @@ when isMainModule:
     tnet_obj = parse_tnetstring( tstr )
     doAssert( tstr == tnet_obj.dump_tnetstring )
 
-    echo "* Tests passed!"
+    # Value fetching methods
+    #
+    var tnet_null = newTNetstringNull()
+    tnet_obj = newTNetstringString( "Hello." )
+    doAssert( tnet_obj.getStr == "Hello." )
+    doAssert( tnet_null.getStr("nope") == "nope" )
+    doAssert( tnet_null.getStr == "" )
+    tnet_obj = newTNetstringInt( 42 )
+    doAssert( tnet_obj.getInt == 42 )
+    doAssert( tnet_null.getInt == 0 )
+    doAssert( tnet_null.getInt(1) == 1 )
+    tnet_obj = newTNetstringFloat( 1.0 )
+    doAssert( tnet_obj.getFloat == 1.0 )
+    doAssert( tnet_null.getFloat == 0 )
+    doAssert( tnet_null.getFloat(0.1) == 0.1 )
+    tnet_obj = newTNetstringObject()
+    tnet_obj[ "yay" ] = newTNetstringInt( 1 )
+    doAssert( tnet_obj.getFields[0].val == newTNetstringInt(1) )
+    doAssert( tnet_null.getFields.len == 0 )
+    tnet_obj = newTNetstringArray()
+    tnet_obj.add( newTNetstringInt(1) )
+    doAssert( tnet_obj.getElems[0] == newTNetstringInt(1) )
+    doAssert( tnet_null.getElems.len == 0 )
 
+
+    echo "* Tests passed!"
 
     while true and defined( testing ):
         for line in readline( stdin ).split_lines:
