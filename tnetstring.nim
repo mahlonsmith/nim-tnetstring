@@ -97,7 +97,7 @@ import
     parseutils,
     strutils
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 type 
   TNetstringKind* = enum     ## enumeration of all valid types
@@ -111,7 +111,7 @@ type
 
   TNetstringNode* = ref TNetstringNodeObj
   TNetstringNodeObj* {.acyclic.} = object
-      extra: string
+      extra*: string
       case kind*: TNetstringKind
       of TNetstringString:
           str*: string
