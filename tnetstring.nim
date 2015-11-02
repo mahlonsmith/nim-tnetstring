@@ -419,7 +419,7 @@ proc delete*( node: TNetstringNode, key: string ) =
     raise newException( IndexError, "key not in object" )
 
 
-proc hash*( node: TNetstringNode ): THash =
+proc hash*( node: TNetstringNode ): Hash =
     ## Compute the hash for a TNetstringString node
     return case node.kind
     of TNetstringString:
