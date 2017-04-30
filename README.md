@@ -10,7 +10,7 @@ overflows and backward compatible with original netstrings.  They make
 no assumptions about string contents, allowing for easy transmission of
 ascii and binary data mixed with strongly typed values.
 
-See http://cr.yp.to/proto/netstrings.txt and http://tnetstrings.org/ for
+See http://cr.yp.to/proto/netstrings.txt and http://tnetstrings.info/ for
 additional information.
 
 
