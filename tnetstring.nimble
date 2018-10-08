@@ -3,7 +3,6 @@
 
 version       = "0.1.2"
 author        = "Mahlon E. Smith <mahlon@martini.nu>"
-description   = "A new awesome nimble package"
 description   = "Parsing and serializing for the TNetstring format."
 license       = "MIT"
 installExt    = @["nim"]
