@@ -1,4 +1,5 @@
 syntax: glob
 .cache
 tnetstring
+src/tnetstring
 *.html

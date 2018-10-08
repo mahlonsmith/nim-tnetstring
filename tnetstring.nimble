@@ -1,10 +1,17 @@
-[Package]
-name          = "tnetstring"
-version       = "0.1.1"
+
+# Package
+
+version       = "0.1.2"
 author        = "Mahlon E. Smith <mahlon@martini.nu>"
+description   = "A new awesome nimble package"
 description   = "Parsing and serializing for the TNetstring format."
 license       = "MIT"
+installExt    = @["nim"]
+bin           = @["tnetstring"]
+srcDir        = "src"
 
-[Deps]
-Requires: "nim >= 0.11.0"
+
+# Dependencies
+
+requires "nim >= 0.19.0"
 

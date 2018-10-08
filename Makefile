@@ -1,5 +1,5 @@
 
-FILES = tnetstring.nim
+FILES = src/tnetstring.nim
 
 default: development
 

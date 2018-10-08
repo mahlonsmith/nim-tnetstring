@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Mahlon E. Smith <mahlon@martini.nu>
+# Copyright (c) 2015-2018, Mahlon E. Smith <mahlon@martini.nu>
 # All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -97,7 +97,7 @@ import
     parseutils,
     strutils
 
-const version = "0.1.1"
+const version = "0.1.2"
 
 type 
   TNetstringKind* = enum     ## enumeration of all valid types
