@@ -1,7 +1,7 @@
 
 # Package
 
-version       = "0.1.2"
+version       = "0.1.3"
 author        = "Mahlon E. Smith <mahlon@martini.nu>"
 description   = "Parsing and serializing for the TNetstring format."
 license       = "MIT"
@@ -11,5 +11,5 @@ srcDir        = "src"
 
 # Dependencies
 
-requires "nim >= 0.19.0"
+requires "nim >= 1.4.0"
 

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015-2018, Mahlon E. Smith <mahlon@martini.nu>
+# Copyright (c) 2015-2021, Mahlon E. Smith <mahlon@martini.nu>
 # All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -97,8 +97,6 @@ import
     parseutils,
     strutils
 
-const version = "0.1.2"
-
 type 
   TNetstringKind* = enum     ## enumeration of all valid types
     TNetstringString,        ## a string literal
@@ -138,50 +136,37 @@ proc raiseParseErr*( t: TNetstringNode, msg: string ) {.noinline, noreturn.} =
 
 proc newTNetstringString*( s: string ): TNetstringNode =
     ## Create a new String typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringString
-    result.str = s
+    result = TNetstringNode( kind: TNetstringString, str: s )
 
 
 proc newTNetstringInt*( i: BiggestInt ): TNetstringNode =
     ## Create a new Integer typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringInt
-    result.num = i
+    result = TNetstringNode( kind: TNetstringInt, num: i )
 
 
 proc newTNetstringFloat*( f: float ): TNetstringNode =
     ## Create a new Float typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringFloat
-    result.fnum = f
+    result = TNetstringNode( kind: TNetstringFloat, fnum: f )
 
 
 proc newTNetstringBool*( b: bool ): TNetstringNode =
     ## Create a new Boolean typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringBool
-    result.bval = b
+    result = TNetstringNode( kind: TNetstringBool, bval: b )
 
 
 proc newTNetstringNull*(): TNetstringNode =
     ## Create a new nil typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringNull
+    result = TNetstringNode( kind: TNetstringNull )
 
 
 proc newTNetstringObject*(): TNetstringNode =
     ## Create a new Object typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringObject
-    result.fields = @[]
+    result = TNetstringNode( kind: TNetstringObject, fields: @[] )
 
 
 proc newTNetstringArray*(): TNetstringNode =
     ## Create a new Array typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringArray
-    result.elems = @[]
+    result = TNetstringNode( kind: TNetstringArray, elems: @[] )
 
 
 proc getStr*( node: TNetstringNode, default: string = "" ): string =
@@ -245,7 +230,7 @@ proc parse_tnetstring*( data: string ): TNetstringNode =
         payload      = data[ sep_pos + 1 .. sep_pos + length ]
         extra        = data[ sep_pos + length + 2 .. ^1 ]
 
-    except ValueError, IndexError:
+    except ValueError, IndexDefect:
         var msg = getCurrentExceptionMsg()
         raiseParseErr( result, msg )
 
@@ -384,9 +369,7 @@ proc `==`* ( a, b: TNetstringNode ): bool =
 
 proc copy*( node: TNetstringNode ): TNetstringNode =
     ## Perform a deep copy of TNetstringNode.
-    new( result )
-    result.kind  = node.kind
-    result.extra = node.extra
+    result = TNetstringNode( kind: node.kind, extra: node.extra )
 
     case node.kind
     of TNetstringString:
@@ -416,7 +399,7 @@ proc delete*( node: TNetstringNode, key: string ) =
         if node.fields[i].key == key:
             node.fields.delete( i )
             return
-    raise newException( IndexError, "key not in object" )
+    raise newException( IndexDefect, "key not in object" )
 
 
 proc hash*( node: TNetstringNode ): Hash =
