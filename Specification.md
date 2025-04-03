@@ -231,5 +231,5 @@ Finally, the general rule is senders should have to completely specify the size 
 
 
 
-The contents of this page were copied and maintained by [Michael Granger](ged@deveiate.org), from an old archived copy of Zed A. Shaw's tnetstrings.org site (which has since disappeared). Most of the content contained herein was written by Zed.
+The contents of this page were copied and maintained by [Michael Granger](ged@deveiate.org) at [https://tnetstrings.info] from an old archived copy of Zed A. Shaw's tnetstrings.org site (which has since disappeared). Most of the content contained herein was written by Zed.
 
