@@ -1,6 +1,6 @@
-# README #
+# Nim TNetstring
 
-### What's this? ###
+## Description
 
 This module implements a simple TNetstring parser and serializer.
 TNetString stands for "tagged netstring" and is a modification of Dan
@@ -10,21 +10,30 @@ overflows and backward compatible with original netstrings.  They make
 no assumptions about string contents, allowing for easy transmission of
 ascii and binary data mixed with strongly typed values.
 
-See http://cr.yp.to/proto/netstrings.txt and http://tnetstrings.org/ for
+See http://cr.yp.to/proto/netstrings.txt and http://tnetstrings.info/ for
 additional information.
 
+You can also read the specification [here](Specification.md).
 
-### Installation ###
+## Prerequisites
+
+None.  This is a pure-nim library.
+
+
+## Installation
 
 The easiest way to install this module is via the nimble package manager, 
-by simply running 'nimble install tnetstring'.
+by simply running:
 
-Alternatively, you can fetch the 'tnetstring.nim' file yourself, and put it in a place of your choosing.
+> % nimble install tnetstring
 
-### Usage ###
+Alternatively, you can fetch the 'tnetstring.nim' file yourself, and put it in a
+place of your choosing.
 
-```
-#!nimrod
+
+## Usage
+
+```nim
 import tnetstring
 
   let
@@ -43,8 +52,7 @@ import tnetstring
 
 Results in:
 
-```
-#!nimrod
+```nim
   1.3
   true
   1
@@ -55,26 +63,44 @@ Results in:
 This module can also be used to reasonably create a serialized
 TNetstring, suitable for network transmission:
 
-```
-#!nimrod
+```nim
    let
        number  = 1000
        list    = @[ "thing1", "thing2" ]
        tnettop = newTNetstringArray() # top-level array
        tnetsub = newTNetstringArray() # sub array
-   
+
    tnettop.add( newTNetstringInt(number) )
    for item in list:
        tnetsub.add( newTNetstringString(item) )
    tnettop.add( tnetsub )
-   
+
    # Equivalent to: @[1000, @[thing1, thing2]]
    echo dump_tnetstring( tnettop )
 ```
 
 Results in:
 
-```
-#!nimrod
+```nim
    29:4:1000#18:6:thing1,6:thing2,]]
 ```
+
+
+## Contributing
+
+You can check out the current development source with Fossil via its [home
+repo](https://code.martini.nu/fossil/nim-tnetstring), or with Git/Jujutsu at its
+[project mirror](https://github.com/mahlonsmith/nim-tnetstring).
+
+After checking out the source, running:
+
+    $ nimble setup
+
+... will install dependencies, and do any other necessary setup for
+development.
+
+
+## Authors
+
+- Mahlon E. Smith <mahlon@martini.nu>
+

@@ -1,105 +1,13 @@
-#
-# Copyright (c) 2015, Mahlon E. Smith <mahlon@martini.nu>
-# All rights reserved.
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-#     * Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#
-#     * Redistributions in binary form must reproduce the above copyright
-#       notice, this list of conditions and the following disclaimer in the
-#       documentation and/or other materials provided with the distribution.
-#
-#     * Neither the name of Mahlon E. Smith nor the names of his
-#       contributors may be used to endorse or promote products derived
-#       from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
-# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY
-# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-## This module implements a simple TNetstring parser and serializer.
-## TNetString stands for "tagged netstring" and is a modification of Dan
-## Bernstein's netstrings specification.  TNetstrings allow for the same data
-## structures as JSON but in a format that is resistant to buffer overflows
-## and backward compatible with original netstrings.  They make no assumptions
-## about string contents, allowing for easy transmission of binary data mixed
-## with strongly typed values.
-
-## See http://cr.yp.to/proto/netstrings.txt and http://tnetstrings.org/ for additional information.
-##
-## This module borrows heavily (in both usage and code) from the nim JSON stdlib
-## (json.nim) -- (c) Copyright 2015 Andreas Rumpf, Dominik Picheta.
-## 
-## Usage example:
-##
-## .. code-block:: nim
-##
-##   let
-##       tnetstr = "52:4:test,3:1.3^4:key2,4:true!6:things,12:1:1#1:2#1:3#]}"
-##       tnetobj = parse_tnetstring( tnetstr )
-##
-##   # tnetobj is now equivalent to the structure:
-##   # @[(key: test, val: 1.3), (key: key2, val: true), (key: things, val: @[1, 2, 3])]
-##
-##   assert( tnetobj.kind == TNetstringObject )
-##   echo tnetobj[ "test" ]
-##   echo tnetobj[ "key2" ]
-##   for item in tnetobj[ "things" ]:
-##       echo item
-##   
-## Results in:
-##
-## .. code-block:: nim
-##
-##   1.3
-##   true
-##   1
-##   2
-##   3
-##
-## This module can also be used to reasonably create a serialized
-## TNetstring, suitable for network transmission:
-##
-## .. code-block:: nim
-##    
-##    let
-##        number  = 1000
-##        list    = @[ "thing1", "thing2" ]
-##        tnettop = newTNetstringArray() # top-level array
-##        tnetsub = newTNetstringArray() # sub array
-##    
-##    tnettop.add( newTNetstringInt(number) )
-##    for item in list:
-##        tnetsub.add( newTNetstringString(item) )
-##    tnettop.add( tnetsub )
-##    
-##    # Equivalent to: @[1000, @[thing1, thing2]]
-##    echo dump_tnetstring( tnettop )
-##
-## Results in:
-##
-## .. code-block:: nim
-##    
-##    29:4:1000#18:6:thing1,6:thing2,]]
-##
+# vim: set et sta sw=4 ts=4 :
 
 import
-    hashes,
-    parseutils,
-    strutils
+    std/hashes,
+    std/parseutils,
+    std/strutils
 
-const version = "0.1.1"
+const TNETSTRING_VERSION* = "0.2.0"
 
-type 
+type
   TNetstringKind* = enum     ## enumeration of all valid types
     TNetstringString,        ## a string literal
     TNetstringInt,           ## an integer literal
@@ -131,88 +39,76 @@ type
   TNetstringParseError* = object of ValueError ## Raised for a TNetstring error
 
 
-proc raiseParseErr*( t: TNetstringNode, msg: string ) {.noinline, noreturn.} =
-  ## Raises a `TNetstringParseError` exception.
-  raise newException( TNetstringParseError, msg )
-
-
-proc newTNetstringString*( s: string ): TNetstringNode =
+func newTNetstringString*( s: string ): TNetstringNode =
     ## Create a new String typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringString
+    result = TNetstringNode( kind: TNetstringString )
     result.str = s
 
 
-proc newTNetstringInt*( i: BiggestInt ): TNetstringNode =
+func newTNetstringInt*( i: BiggestInt ): TNetstringNode =
     ## Create a new Integer typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringInt
+    result = TNetstringNode( kind: TNetstringInt )
     result.num = i
 
 
-proc newTNetstringFloat*( f: float ): TNetstringNode =
+func newTNetstringFloat*( f: float ): TNetstringNode =
     ## Create a new Float typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringFloat
+    result = TNetstringNode( kind: TNetstringFloat )
     result.fnum = f
 
 
-proc newTNetstringBool*( b: bool ): TNetstringNode =
+func newTNetstringBool*( b: bool ): TNetstringNode =
     ## Create a new Boolean typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringBool
+    result = TNetstringNode( kind: TNetstringBool )
     result.bval = b
 
 
-proc newTNetstringNull*(): TNetstringNode =
+func newTNetstringNull*(): TNetstringNode =
     ## Create a new nil typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringNull
+    result = TNetstringNode( kind: TNetstringNull )
 
 
-proc newTNetstringObject*(): TNetstringNode =
+func newTNetstringObject*(): TNetstringNode =
     ## Create a new Object typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringObject
+    result = TNetstringNode( kind: TNetstringObject )
     result.fields = @[]
 
 
-proc newTNetstringArray*(): TNetstringNode =
+func newTNetstringArray*(): TNetstringNode =
     ## Create a new Array typed TNetstringNode.
-    new( result )
-    result.kind = TNetstringArray
+    result = TNetstringNode( kind: TNetstringArray )
     result.elems = @[]
 
 
-proc getStr*( node: TNetstringNode, default: string = "" ): string =
+func getStr*( node: TNetstringNode, default: string = "" ): string =
     ## Retrieves the string value of a `TNetstringString TNetstringNodee`.
     ## Returns ``default`` if ``node`` is not a ``TNetstringString``.
     if node.kind != TNetstringString: return default
     return node.str
 
 
-proc getInt*( node: TNetstringNode, default: BiggestInt = 0 ): BiggestInt =
+func getInt*( node: TNetstringNode, default: BiggestInt = 0 ): BiggestInt =
     ## Retrieves the int value of a `TNetstringInt TNetstringNode`.
     ## Returns ``default`` if ``node`` is not a ``TNetstringInt``.
     if node.kind != TNetstringInt: return default
     return node.num
 
 
-proc getFloat*( node: TNetstringNode, default: float = 0.0 ): float =
+func getFloat*( node: TNetstringNode, default: float = 0.0 ): float =
     ## Retrieves the float value of a `TNetstringFloat TNetstringNode`.
     ## Returns ``default`` if ``node`` is not a ``TNetstringFloat``.
     if node.kind != TNetstringFloat: return default
     return node.fnum
 
 
-proc getBool*( node: TNetstringNode, default: bool = false ): bool =
+func getBool*( node: TNetstringNode, default: bool = false ): bool =
     ## Retrieves the bool value of a `TNetstringBool TNetstringNode`.
     ## Returns ``default`` if ``node`` is not a ``TNetstringBool``.
     if node.kind != TNetstringBool: return default
     return node.bval
 
 
-proc getFields*( node: TNetstringNode,
+func getFields*( node: TNetstringNode,
     default: seq[tuple[key: string, val: TNetstringNode]] = @[] ):
         seq[tuple[key: string, val: TNetstringNode]] =
     ## Retrieves the key, value pairs of a `TNetstringObject TNetstringNode`.
@@ -221,14 +117,14 @@ proc getFields*( node: TNetstringNode,
     return node.fields
 
 
-proc getElems*( node: TNetstringNode, default: seq[TNetstringNode] = @[] ): seq[TNetstringNode] =
+func getElems*( node: TNetstringNode, default: seq[TNetstringNode] = @[] ): seq[TNetstringNode] =
     ## Retrieves the values of a `TNetstringArray TNetstringNode`.
     ## Returns ``default`` if ``node`` is not a ``TNetstringArray``.
     if node.kind != TNetstringArray: return default
     return node.elems
 
 
-proc parse_tnetstring*( data: string ): TNetstringNode =
+proc parseTNetstring*( data: string ): TNetstringNode =
     ## Given an encoded tnetstring, parse and return a TNetstringNode.
     var
         length:  int
@@ -237,17 +133,22 @@ proc parse_tnetstring*( data: string ): TNetstringNode =
         extra:   string
 
     let sep_pos = data.skipUntil( ':' )
-    if sep_pos == data.len: raiseParseErr( result, "Invalid data: No separator token found." )
+    if sep_pos == data.len:
+        raise newException( TNetstringParseError, "Invalid data: No separator token found." )
 
     try:
-        length       = data[ 0 .. sep_pos - 1 ].parseInt
-        kind         = data[ sep_pos + length + 1 ]
-        payload      = data[ sep_pos + 1 .. sep_pos + length ]
-        extra        = data[ sep_pos + length + 2 .. ^1 ]
+        length = data[ 0 .. sep_pos - 1 ].parseInt
 
-    except ValueError, IndexError:
-        var msg = getCurrentExceptionMsg()
-        raiseParseErr( result, msg )
+        if ($length).len > 9:
+            raise newException( TNetstringParseError, "Invalid data: Size more than 9 digits." )
+
+        kind    = data[ sep_pos + length + 1 ]
+        payload = data[ sep_pos + 1 .. sep_pos + length ]
+        extra   = data[ sep_pos + length + 2 .. ^1 ]
+
+    except ValueError, IndexDefect:
+        let msg = getCurrentExceptionMsg()
+        raise newException( TNetstringParseError, msg )
 
     case kind:
         of ',':
@@ -258,22 +159,26 @@ proc parse_tnetstring*( data: string ): TNetstringNode =
                 result = newTNetstringInt( payload.parseBiggestInt )
             except ValueError:
                 var msg = getCurrentExceptionMsg()
-                raiseParseErr( result, msg )
+                raise newException( TNetstringParseError, msg )
 
         of '^':
             try:
                 result = newTNetstringFloat( payload.parseFloat )
             except ValueError:
                 var msg = getCurrentExceptionMsg()
-                raiseParseErr( result, msg )
+                raise newException( TNetstringParseError, msg )
 
         of '!':
             result = newTNetstringBool( payload == "true" )
 
         of '~':
-            if length != 0: raiseParseErr( result, "Invalid data: Payload must be 0 length for null." )
+            if length != 0:
+                raise newException(
+                    TNetstringParseError,
+                    "Invalid data: Payload must be 0 length for null."
+                )
             result = newTNetstringNull()
-            
+
         of ']':
             result = newTNetstringArray()
 
@@ -288,22 +193,27 @@ proc parse_tnetstring*( data: string ): TNetstringNode =
             result = newTNetstringObject()
             var key = parse_tnetstring( payload )
 
-            if ( key.extra == "" ): raiseParseErr( result, "Invalid data: Unbalanced tuple." )
-            if ( key.kind != TNetstringString ): raiseParseErr( result, "Invalid data: Object keys must be strings." )
+            if ( key.extra == "" ):
+                raise newException( TNetstringParseError, "Invalid data: Unbalanced tuple." )
+            if ( key.kind != TNetstringString ):
+                raise newException( TNetstringParseError, "Invalid data: Object keys must be strings." )
 
             var value = parse_tnetstring( key.extra )
             result.fields.add( (key: key.str, val: value) )
 
             while value.extra != "":
                 var subkey = parse_tnetstring( value.extra )
-                if ( subkey.extra == "" ): raiseParseErr( result, "Invalid data: Unbalanced tuple." )
-                if ( subkey.kind != TNetstringString ): raiseParseErr( result, "Invalid data: Object keys must be strings." )
+                if ( subkey.extra == "" ):
+                    raise newException( TNetstringParseError, "Invalid data: Unbalanced tuple." )
+                if ( subkey.kind != TNetstringString ):
+                    raise newException( TNetstringParseError, "Invalid data: Object keys must be strings." )
 
                 value = parse_tnetstring( subkey.extra )
                 result.fields.add( (key: subkey.str, val: value) )
 
         else:
-            raiseParseErr( result, "Invalid data: Unknown tnetstring type '$1'." % $kind )
+            let msg =  "Invalid data: Unknown tnetstring type '$1'." % $kind
+            raise newException( TNetstringParseError, msg )
 
     result.extra = extra
 
@@ -338,7 +248,7 @@ iterator mpairs*( node: var TNetstringNode ): var tuple[ key: string, val: TNets
         yield keyVal
 
 
-proc `$`*( node: TNetstringNode ): string =
+func `$`*( node: TNetstringNode ): string =
     ## Delegate stringification of `TNetstringNode` to its underlying object.
     return case node.kind:
     of TNetstringString:
@@ -357,35 +267,14 @@ proc `$`*( node: TNetstringNode ): string =
         $node.fields
 
 
-proc `==`* ( a, b: TNetstringNode ): bool =
+func `==`*( a, b: TNetstringNode ): bool =
     ## Check two TNetstring nodes for equality.
-    if a.isNil:
-        if b.isNil: return true
-        return false
-    elif b.isNil or a.kind != b.kind:
-        return false
-    else:
-        return case a.kind
-        of TNetstringString:
-            a.str == b.str
-        of TNetstringInt:
-            a.num == b.num
-        of TNetstringFloat:
-            a.fnum == b.fnum
-        of TNetstringBool:
-            a.bval == b.bval
-        of TNetstringNull:
-            true
-        of TNetstringArray:
-            a.elems == b.elems
-        of TNetstringObject:
-            a.fields == b.fields
+    return a.kind == b.kind and $a == $b
 
 
-proc copy*( node: TNetstringNode ): TNetstringNode =
+func copy*( node: TNetstringNode ): TNetstringNode =
     ## Perform a deep copy of TNetstringNode.
-    new( result )
-    result.kind  = node.kind
+    result = TNetstringNode( kind: node.kind )
     result.extra = node.extra
 
     case node.kind
@@ -409,17 +298,17 @@ proc copy*( node: TNetstringNode ): TNetstringNode =
             result.fields.add( (key, copy(value)) )
 
 
-proc delete*( node: TNetstringNode, key: string ) =
+func delete*( node: TNetstringNode, key: string ) =
     ## Deletes ``node[key]`` preserving the order of the other (key, value)-pairs.
     assert( node.kind == TNetstringObject )
     for i in 0..node.fields.len - 1:
         if node.fields[i].key == key:
             node.fields.delete( i )
             return
-    raise newException( IndexError, "key not in object" )
+    raise newException( IndexDefect, "key not in object" )
 
 
-proc hash*( node: TNetstringNode ): Hash =
+func hash*( node: TNetstringNode ): Hash =
     ## Compute the hash for a TNetstringString node
     return case node.kind
     of TNetstringString:
@@ -438,7 +327,7 @@ proc hash*( node: TNetstringNode ): Hash =
         hash( node.fields )
 
 
-proc len*( node: TNetstringNode ): int =
+func len*( node: TNetstringNode ): int =
     ## If `node` is a `TNetstringArray`, it returns the number of elements.
     ## If `node` is a `TNetstringObject`, it returns the number of pairs.
     ## If `node` is a `TNetstringString`, it returns strlen.
@@ -454,7 +343,7 @@ proc len*( node: TNetstringNode ): int =
         0
 
 
-proc `[]`*( node: TNetstringNode, name: string ): TNetstringNode =
+func `[]`*( node: TNetstringNode, name: string ): TNetstringNode =
     ## Gets a field from a `TNetstringNode`, which must not be nil.
     ## If the value at `name` does not exist, returns nil
     assert( not isNil(node) )
@@ -465,7 +354,7 @@ proc `[]`*( node: TNetstringNode, name: string ): TNetstringNode =
     return nil
 
 
-proc `[]`*( node: TNetstringNode, index: int ): TNetstringNode =
+func `[]`*( node: TNetstringNode, index: int ): TNetstringNode =
     ## Gets the node at `index` in an Array. Result is undefined if `index`
     ## is out of bounds.
     assert( not isNil(node) )
@@ -473,20 +362,20 @@ proc `[]`*( node: TNetstringNode, index: int ): TNetstringNode =
     return node.elems[ index ]
 
 
-proc hasKey*( node: TNetstringNode, key: string ): bool =
+func hasKey*( node: TNetstringNode, key: string ): bool =
     ## Checks if `key` exists in `node`.
     assert( node.kind == TNetstringObject )
     for k, item in items( node.fields ):
         if k == key: return true
 
 
-proc add*( parent, child: TNetstringNode ) =
+func add*( parent, child: TNetstringNode ) =
     ## Appends `child` to a TNetstringArray node `parent`.
     assert( parent.kind == TNetstringArray )
     parent.elems.add( child )
 
 
-proc add*( node: TNetstringNode, key: string, val: TNetstringNode ) =
+func add*( node: TNetstringNode, key: string, val: TNetstringNode ) =
     ## Adds ``(key, val)`` pair to the TNetstringObject `node`.
     ## For speed reasons no check for duplicate keys is performed.
     ## (Note, ``[]=`` performs the check.)
@@ -494,13 +383,13 @@ proc add*( node: TNetstringNode, key: string, val: TNetstringNode ) =
     node.fields.add( (key, val) )
 
 
-proc `[]=`*( node: TNetstringNode, index: int, val: TNetstringNode ) =
+func `[]=`*( node: TNetstringNode, index: int, val: TNetstringNode ) =
     ## Sets an index for a `TNetstringArray`.
     assert( node.kind == TNetstringArray )
     node.elems[ index ] = val
 
 
-proc `[]=`*( node: TNetstringNode, key: string, val: TNetstringNode ) =
+func `[]=`*( node: TNetstringNode, key: string, val: TNetstringNode ) =
     ## Sets a field from a `TNetstringObject`. Performs a check for duplicate keys.
     assert( node.kind == TNetstringObject )
     for i in 0 .. node.fields.len - 1:
@@ -510,7 +399,7 @@ proc `[]=`*( node: TNetstringNode, key: string, val: TNetstringNode ) =
     node.fields.add( (key, val) )
 
 
-proc dump_tnetstring*( node: TNetstringNode ): string =
+func dump_tnetstring*( node: TNetstringNode ): string =
     ## Renders a TNetstring `node` as a regular string.
     case node.kind
     of TNetstringString:
@@ -538,170 +427,10 @@ proc dump_tnetstring*( node: TNetstringNode ): string =
         result = $( result.len ) & ':' & result & '}'
 
 
+# Quickie round-tripper.
 #
-# Tests!
-#
-when isMainModule:
-
-    # Expected exceptions
-    #
-    try:
-        discard parse_tnetstring( "totally invalid" )
-    except TNetstringParseError:
-        doAssert( true, "invalid tnetstring" )
-    try:
-        discard parse_tnetstring( "what:ever" )
-    except TNetstringParseError:
-        doAssert( true, "bad length" )
-    try:
-        discard parse_tnetstring( "3:yep~" )
-    except TNetstringParseError:
-        doAssert( true, "null w/ > 0 length" )
-    try:
-        discard parse_tnetstring( "8:1:1#1:1#}" )
-    except TNetstringParseError:
-        doAssert( true, "hash with non-string key" )
-    try:
-        discard parse_tnetstring( "7:4:test,}" )
-    except TNetstringParseError:
-        doAssert( true, "hash with odd number of elements" )
-    try:
-        discard parse_tnetstring( "2:25*" )
-    except TNetstringParseError:
-        doAssert( true, "unknown netstring tag" )
-
-    # Equality
-    #
-    let tnet_int = parse_tnetstring( "1:1#" )
-    doAssert( tnet_int == tnet_int )
-    doAssert( tnet_int == parse_tnetstring( "1:1#" ) )
-    doAssert( parse_tnetstring( "0:~" ) == parse_tnetstring( "0:~" ) )
-
-    # Type detection
-    #
-    doAssert( tnet_int.kind == TNetstringInt )
-    doAssert( parse_tnetstring( "1:a," ).kind         == TNetstringString )
-    doAssert( parse_tnetstring( "3:1.0^" ).kind       == TNetstringFloat )
-    doAssert( parse_tnetstring( "5:false!" ).kind     == TNetstringBool )
-    doAssert( parse_tnetstring( "0:~" ).kind          == TNetstringNull )
-    doAssert( parse_tnetstring( "9:2:hi,1:1#}" ).kind == TNetstringObject )
-    doAssert( parse_tnetstring( "8:1:1#1:2#]" ).kind  == TNetstringArray )
-
-    # Iteration (both array and tuple)
-    #
-    var
-        keys: array[ 2, string ]
-        vals: array[ 4, string ]
-        k_idx = 0
-        idx = 0
-    for key, val in parse_tnetstring( "35:2:hi,8:1:a,1:b,]5:there,8:1:c,1:d,]}" ):
-        keys[ idx ] = key
-        idx = idx + 1
-        for item in val:
-            vals[ k_idx ] = item.str
-            k_idx = k_idx + 1
-    doAssert( keys == ["hi","there"] )
-    doassert( vals == ["a","b","c","d"] )
-
-    # Deep copies
-    #
-    var original = parse_tnetstring( "35:2:hi,8:1:a,1:b,]5:there,8:1:c,1:d,]}" )
-    var copied   = original.copy
-    doAssert( original == copied )
-    doAssert( original.repr != copied.repr )
-    doAssert( original.fields.pop.val.elems.pop.repr != copied.fields.pop.val.elems.pop.repr )
-
-    # Key deletion
-    #
-    var tnet_obj = parse_tnetstring( "35:2:hi,8:1:a,1:b,]5:there,8:1:c,1:d,]}" )
-    tnet_obj.delete( "hi" )
-    doAssert( tnet_obj.fields.len == 1 )
-
-    # Hashing
-    #
-    doAssert( tnet_int.hash == 1.hash )
-    doAssert( parse_tnetstring( "4:true!" ).hash == hash( true.int ) )
-
-    # Length checks.
-    #
-    tnet_obj = parse_tnetstring( "35:2:hi,8:1:a,1:b,]5:there,8:1:c,1:d,]}" )
-    doAssert( parse_tnetstring( "0:~" ).len == 0 )
-    doAssert( tnet_obj.len == 2 )
-    doAssert( parse_tnetstring( "8:1:1#1:2#]" ).len == 2 )
-    doAssert( parse_tnetstring( "5:hallo," ).len == 5 )
-
-    # Index accessors
-    #
-    tnet_obj = parse_tnetstring( "20:1:1#1:2#1:3#1:4#1:5#]" )
-    doAssert( tnet_obj[ 2 ].num == 3 )
-
-    # Key accessors
-    #
-    tnet_obj = parse_tnetstring( "11:2:hi,3:yep,}" )
-    doAssert( $tnet_obj["hi"] == "yep" )
-    doAssert( tnet_obj.has_key( "hi" ) == true )
-    doAssert( tnet_obj.has_key( "nope-not-here" ) == false )
-
-    # Adding elements to an existing TNetstring array
-    #
-    var tnet_array = newTNetstringArray()
-    for i in 1 .. 10:
-        tnet_obj = newTNetstringInt( i )
-        tnet_array.add( tnet_obj )
-    tnet_array[ 6 ] = newTNetstringString( "yep" )
-    doAssert( tnet_array.len == 10 )
-    doAssert( tnet_array[ 4 ].num == 5 )
-    doAssert( tnet_array[ 6 ].str == "yep" )
-
-    # Adding pairs to an existing TNetstring aobject.
-    #
-    tnet_obj = newTNetstringObject()
-    tnet_obj.add( "yo", newTNetstringInt(1) )
-    tnet_obj.add( "yep", newTNetstringInt(2) )
-    doAssert( tnet_obj["yo"].num == 1 )
-    doAssert( tnet_obj["yep"].num == 2 )
-    doAssert( tnet_obj.len == 2 )
-    tnet_obj[ "more" ] = newTNetstringInt(1)
-    tnet_obj[ "yo" ] = newTNetstringInt(1) # dup check
-    doAssert( tnet_obj.len == 3 )
-
-    # Serialization.
-    #
-    var tstr = "308:9:givenName,6:Mahlon,16:departmentNumber,22:Information Technology," &
-        "5:title,19:Senior Technologist,13:accountConfig,48:7:vmemail,4:true!7:allpage," &
-        "5:false!7:galhide,0:~}13:homeDirectory,14:/home/m/mahlon,3:uid,6:mahlon,9:yubi" &
-        "KeyId,12:vvidhghkhehj,5:gecos,12:Mahlon Smith,2:sn,5:Smith,14:employeeNumber,5:12921#}"
-    tnet_obj = parse_tnetstring( tstr )
-    doAssert( tstr == tnet_obj.dump_tnetstring )
-
-    # Value fetching methods
-    #
-    var tnet_null = newTNetstringNull()
-    tnet_obj = newTNetstringString( "Hello." )
-    doAssert( tnet_obj.getStr == "Hello." )
-    doAssert( tnet_null.getStr("nope") == "nope" )
-    doAssert( tnet_null.getStr == "" )
-    tnet_obj = newTNetstringInt( 42 )
-    doAssert( tnet_obj.getInt == 42 )
-    doAssert( tnet_null.getInt == 0 )
-    doAssert( tnet_null.getInt(1) == 1 )
-    tnet_obj = newTNetstringFloat( 1.0 )
-    doAssert( tnet_obj.getFloat == 1.0 )
-    doAssert( tnet_null.getFloat == 0 )
-    doAssert( tnet_null.getFloat(0.1) == 0.1 )
-    tnet_obj = newTNetstringObject()
-    tnet_obj[ "yay" ] = newTNetstringInt( 1 )
-    doAssert( tnet_obj.getFields[0].val == newTNetstringInt(1) )
-    doAssert( tnet_null.getFields.len == 0 )
-    tnet_obj = newTNetstringArray()
-    tnet_obj.add( newTNetstringInt(1) )
-    doAssert( tnet_obj.getElems[0] == newTNetstringInt(1) )
-    doAssert( tnet_null.getElems.len == 0 )
-
-
-    echo "* Tests passed!"
-
-    while true and defined( testing ):
+when isMainModule and defined( testing ):
+    while true:
         for line in readline( stdin ).split_lines:
             let input = line.strip
             try:
