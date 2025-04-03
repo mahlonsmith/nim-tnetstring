@@ -1,8 +1,3 @@
----
-title: "TNetstrings Specification"
-source: "https://tnetstrings.info/"
-description: "Spec for typed netstrings."
----
 
 ## About Tagged Netstrings
 
